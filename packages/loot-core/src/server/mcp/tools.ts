@@ -5,6 +5,7 @@ import { q } from '#shared/query';
 import type { Query } from '#shared/query';
 import type { Handlers } from '#types/handlers';
 
+import { isObject } from './protocol';
 import type { McpTool, McpToolDefinition } from './protocol';
 
 /**
@@ -80,11 +81,9 @@ const READ_ONLY_ANNOTATIONS: McpToolDefinition['annotations'] = {
   openWorldHint: false,
 };
 
-class McpToolError extends Error {}
-
 function ensureBudgetOpen() {
   if (!prefs.getPrefs()?.id) {
-    throw new McpToolError(
+    throw new Error(
       'No budget is open in Actual. Open a budget in the app and try again.',
     );
   }
@@ -96,7 +95,7 @@ function optionalString(args: Record<string, unknown>, key: string) {
     return undefined;
   }
   if (typeof value !== 'string') {
-    throw new McpToolError(`"${key}" must be a string`);
+    throw new Error(`"${key}" must be a string`);
   }
   return value;
 }
@@ -104,7 +103,7 @@ function optionalString(args: Record<string, unknown>, key: string) {
 function optionalId(args: Record<string, unknown>, key: string) {
   const value = optionalString(args, key);
   if (value !== undefined && !/^[\w-]+$/.test(value)) {
-    throw new McpToolError(`"${key}" is not a valid id`);
+    throw new Error(`"${key}" is not a valid id`);
   }
   return value;
 }
@@ -112,7 +111,7 @@ function optionalId(args: Record<string, unknown>, key: string) {
 function optionalDate(args: Record<string, unknown>, key: string) {
   const value = optionalString(args, key);
   if (value !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new McpToolError(`"${key}" must be a date formatted as YYYY-MM-DD`);
+    throw new Error(`"${key}" must be a date formatted as YYYY-MM-DD`);
   }
   return value;
 }
@@ -123,7 +122,7 @@ function optionalInteger(args: Record<string, unknown>, key: string) {
     return undefined;
   }
   if (typeof value !== 'number' || !Number.isInteger(value)) {
-    throw new McpToolError(`"${key}" must be an integer`);
+    throw new Error(`"${key}" must be an integer`);
   }
   return value;
 }
@@ -134,7 +133,7 @@ function optionalBoolean(args: Record<string, unknown>, key: string) {
     return undefined;
   }
   if (typeof value !== 'boolean') {
-    throw new McpToolError(`"${key}" must be a boolean`);
+    throw new Error(`"${key}" must be a boolean`);
   }
   return value;
 }
@@ -150,7 +149,7 @@ function oneOf<T extends string>(
   }
   const match = options.find(option => option === value);
   if (!match) {
-    throw new McpToolError(`"${key}" must be one of: ${options.join(', ')}`);
+    throw new Error(`"${key}" must be one of: ${options.join(', ')}`);
   }
   return match;
 }
@@ -158,7 +157,7 @@ function oneOf<T extends string>(
 function rowLimit(args: Record<string, unknown>) {
   const limit = optionalInteger(args, 'limit') ?? DEFAULT_ROW_LIMIT;
   if (limit < 1 || limit > MAX_ROW_LIMIT) {
-    throw new McpToolError(`"limit" must be between 1 and ${MAX_ROW_LIMIT}`);
+    throw new Error(`"limit" must be between 1 and ${MAX_ROW_LIMIT}`);
   }
   return limit;
 }
@@ -166,7 +165,7 @@ function rowLimit(args: Record<string, unknown>) {
 function rowOffset(args: Record<string, unknown>) {
   const offset = optionalInteger(args, 'offset') ?? 0;
   if (offset < 0) {
-    throw new McpToolError('"offset" must not be negative');
+    throw new Error('"offset" must not be negative');
   }
   return offset;
 }
@@ -502,7 +501,7 @@ export function createMcpTools(handlers: McpReadOnlyHandlers): McpTool[] {
       async args => {
         const groupBy = oneOf(args, 'groupBy', SUMMARY_GROUPS);
         if (!groupBy) {
-          throw new McpToolError('"groupBy" is required');
+          throw new Error('"groupBy" is required');
         }
         const accountId = optionalId(args, 'accountId');
         const categoryId = optionalId(args, 'categoryId');
@@ -566,7 +565,7 @@ export function createMcpTools(handlers: McpReadOnlyHandlers): McpTool[] {
               .select([{ year: { $year: '$date' } }, ...totals]);
             break;
           default:
-            throw new McpToolError(`Unsupported groupBy: ${String(groupBy)}`);
+            throw new Error(`Unsupported groupBy: ${String(groupBy)}`);
         }
 
         const rows = await runQuery(query);
@@ -609,7 +608,7 @@ export function createMcpTools(handlers: McpReadOnlyHandlers): McpTool[] {
       async args => {
         const month = optionalString(args, 'month');
         if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-          throw new McpToolError('"month" must be formatted as YYYY-MM');
+          throw new Error('"month" must be formatted as YYYY-MM');
         }
         return handlers['api/budget-month']({ month });
       },
@@ -657,7 +656,7 @@ export function createMcpTools(handlers: McpReadOnlyHandlers): McpTool[] {
       async args => {
         const id = optionalId(args, 'id');
         if (!id) {
-          throw new McpToolError('"id" is required');
+          throw new Error('"id" is required');
         }
         return (await handlers['api/note-get']({ id })) ?? null;
       },
@@ -717,61 +716,41 @@ export function createMcpTools(handlers: McpReadOnlyHandlers): McpTool[] {
       async args => {
         const table = oneOf(args, 'table', QUERYABLE_TABLES);
         if (!table) {
-          throw new McpToolError('"table" is required');
+          throw new Error('"table" is required');
         }
 
         let query = q(table);
 
         if (args.options !== undefined) {
-          const options = args.options;
-          if (
-            table !== 'transactions' ||
-            options === null ||
-            typeof options !== 'object' ||
-            Array.isArray(options)
-          ) {
-            throw new McpToolError(
+          if (table !== 'transactions' || !isObject(args.options)) {
+            throw new Error(
               '"options" is only supported for the transactions table',
             );
           }
-          const splits = oneOf(
-            options as Record<string, unknown>,
-            'splits',
-            SPLITS_OPTIONS,
-          );
+          const splits = oneOf(args.options, 'splits', SPLITS_OPTIONS);
           if (splits) {
             query = query.options({ splits });
           }
         }
 
         if (args.filter !== undefined) {
-          if (
-            args.filter === null ||
-            typeof args.filter !== 'object' ||
-            Array.isArray(args.filter)
-          ) {
-            throw new McpToolError('"filter" must be an object');
+          if (!isObject(args.filter)) {
+            throw new Error('"filter" must be an object');
           }
-          query = query.filter(args.filter as Record<string, unknown>);
+          query = query.filter(args.filter);
         }
 
         if (args.calculate !== undefined) {
-          if (
-            args.calculate === null ||
-            typeof args.calculate !== 'object' ||
-            Array.isArray(args.calculate)
-          ) {
-            throw new McpToolError('"calculate" must be an object');
+          if (!isObject(args.calculate)) {
+            throw new Error('"calculate" must be an object');
           }
-          const { data } = await aqlQuery(
-            query.calculate(args.calculate as Record<string, unknown>),
-          );
+          const { data } = await aqlQuery(query.calculate(args.calculate));
           return { result: data };
         }
 
         for (const key of ['select', 'groupBy', 'orderBy'] as const) {
           if (args[key] !== undefined && !Array.isArray(args[key])) {
-            throw new McpToolError(`"${key}" must be an array`);
+            throw new Error(`"${key}" must be an array`);
           }
         }
 

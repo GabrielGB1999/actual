@@ -13,6 +13,7 @@ import {
 import path from 'path';
 
 import type { GlobalPrefsJson } from '@actual-app/core/types/prefs';
+import type { McpServerStatus } from '@actual-app/core/typings/window';
 import {
   app,
   BrowserWindow,
@@ -475,16 +476,9 @@ function sendMcpMessageToBackend(message: unknown) {
   });
 }
 
-export type McpServerStatus = {
-  running: boolean;
-  port: number | null;
-  url: string | null;
-  error: string | null;
-};
-
 function getMcpServerStatus(): McpServerStatus {
   return {
-    running: mcpServer !== null,
+    isRunning: mcpServer !== null,
     port: mcpServerPort,
     url: mcpServerPort ? `http://127.0.0.1:${mcpServerPort}${MCP_PATH}` : null,
     error: mcpServerError,

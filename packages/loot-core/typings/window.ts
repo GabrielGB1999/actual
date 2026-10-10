@@ -14,7 +14,7 @@ type FileDialogOptions = {
 };
 
 export type McpServerStatus = {
-  running: boolean;
+  isRunning: boolean;
   port: number | null;
   url: string | null;
   /** 'port-in-use', 'missing-token' or an error message */
