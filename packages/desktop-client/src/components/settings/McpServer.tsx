@@ -17,16 +17,6 @@ import { useDispatch } from '#redux';
 
 import { Setting } from './UI';
 
-const DEFAULT_MCP_PORT = 5008;
-const MCP_SERVER_NAME = 'actual-budget';
-
-type McpClient =
-  | 'claude-code'
-  | 'claude-desktop'
-  | 'cursor'
-  | 'vscode'
-  | 'other';
-
 export function McpServerSettings() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
@@ -295,7 +285,7 @@ function getStatusMessage(
   if (!isEnabled || !status) {
     return null;
   }
-  if (status.running && status.url) {
+  if (status.isRunning && status.url) {
     return {
       isError: false,
       text: t('Running and listening on {{url}}', { url: status.url }),
@@ -410,3 +400,13 @@ function getClientConfig(client: McpClient, url: string, token: string) {
   const masked = token ? `${token.slice(0, 4)}…${token.slice(-4)}` : '';
   return { code: build(token), display: build(masked) };
 }
+
+const DEFAULT_MCP_PORT = 5008;
+const MCP_SERVER_NAME = 'actual-budget';
+
+type McpClient =
+  | 'claude-code'
+  | 'claude-desktop'
+  | 'cursor'
+  | 'vscode'
+  | 'other';

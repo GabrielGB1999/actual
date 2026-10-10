@@ -2,11 +2,7 @@ import { createApp } from '#server/app';
 import { app as mainApp } from '#server/main-app';
 
 import { handleMcpMessage } from './protocol';
-import {
-  createMcpTools,
-  MCP_READ_ONLY_HANDLERS,
-  MCP_SERVER_INSTRUCTIONS,
-} from './tools';
+import { createMcpTools, MCP_SERVER_INSTRUCTIONS } from './tools';
 import type { McpReadOnlyHandlers } from './tools';
 
 export type McpHandlers = {
@@ -19,13 +15,9 @@ export const app = createApp<McpHandlers>();
 app.method('mcp-handle-message', handleMessage);
 
 function getReadOnlyHandlers(): McpReadOnlyHandlers {
-  // Copy only the allow-listed handlers so the tools can't reach anything
-  // else, even by accident.
-  const handlers = {} as Record<string, unknown>;
-  for (const name of MCP_READ_ONLY_HANDLERS) {
-    handlers[name] = mainApp.handlers[name];
-  }
-  return handlers as McpReadOnlyHandlers;
+  // The type only exposes the allow-listed read-only handlers to the tools
+  const handlers: McpReadOnlyHandlers = mainApp.handlers;
+  return handlers;
 }
 
 /**

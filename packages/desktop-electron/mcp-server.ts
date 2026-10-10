@@ -69,17 +69,17 @@ function readBody(req: IncomingMessage) {
   return new Promise<string | null>((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
-    let tooLarge = false;
+    let isTooLarge = false;
     req.on('data', (chunk: Buffer) => {
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
-        tooLarge = true;
+        isTooLarge = true;
         return;
       }
       chunks.push(chunk);
     });
     req.on('end', () =>
-      resolve(tooLarge ? null : Buffer.concat(chunks).toString('utf8')),
+      resolve(isTooLarge ? null : Buffer.concat(chunks).toString('utf8')),
     );
     req.on('error', reject);
   });
